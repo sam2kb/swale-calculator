@@ -13,9 +13,11 @@ It is used by [Witty Finch Engineering](https://wittyfinch.com) in their residen
 - Site stats:
 	- Acres = `Sq. feet / 43,560`.
 	- Percent = each area divided by lot size.
-- Required retention (cf): uses the larger of:
-	- `0.5 inch over total lot area`, and
-	- `1.0 inch over impervious area`.
+- Required retention (cf): based on selected **Retention basis** option.
+	- Default `Max (1/2" lot | 1" impervious)` uses the larger of:
+		- `0.5 inch over total lot area`, and
+		- `1.0 inch over impervious area`.
+	- Other options calculate directly from the chosen basis (`1/2" lot`, `1" lot`, `1.5" lot`, or `1" impervious`).
 - Swale volume (cf):
 	- `V-Shape` (accounts for sloped short sides): `h × Wt × (2Lt + Lb) / 6`, where
 		- `h = depth`,
@@ -32,9 +34,10 @@ It is used by [Witty Finch Engineering](https://wittyfinch.com) in their residen
 
 Under **Stormwater Retention**:
 
-- `Retention basis`: `Current max (1/2" lot | 1" impervious)`, `1/2" over lot`, `1" over lot`, `1.5" over lot`, or `1" over impervious`.
+- `Retention basis`: `Max (1/2" lot | 1" impervious)`, `1/2" over lot`, `1" over lot`, `1.5" over lot`, or `1" over impervious`.
 - `Side slope ratio (H:V)`: global slope constant used by swale geometry formulas.
 - `Input highlight`: `ON/OFF` toggle for yellow background on editable input cells.
+- `Retention options` chart (right side): shows each basis option with calculated values.
 
 ## Built-in guardrails
 
@@ -49,18 +52,7 @@ The workbook includes validation checks to prevent invalid geometry entries.
 
 ## Build
 
-### macOS / Linux
-
-```bash
-chmod +x build/build.sh
-./build/build.sh
-```
-
-### Windows (Command Prompt)
-
-```bat
-build\build.bat
-```
+Supports both macOS/Linux and Windows builders (`build/build.sh` and `build\\build.bat`).
 
 The script will:
 
