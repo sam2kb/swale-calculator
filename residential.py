@@ -9,6 +9,7 @@ from typing import Union
 from openpyxl import Workbook
 from openpyxl.cell.rich_text import CellRichText, TextBlock
 from openpyxl.cell.text import InlineFont
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Color, Font, PatternFill, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -41,9 +42,10 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
 
     # Use opaque ARGB fills (FF......) so Excel shows them
     fill_header = PatternFill("solid", fgColor=Color(theme=9, tint=0.8))
-    fill_sub = PatternFill("solid", fgColor="FFFAFAFA")
-
-    thin = Side(style="thin", color="FF888888")
+    fill_input = PatternFill(fill_type="solid", start_color="FFFFFF00", end_color="FFFFFF00")
+    fill_deprecated = PatternFill(fill_type="solid", start_color="FFF2F2F2", end_color="FFF2F2F2")
+    deprecate_font = Font(color="FF7F7F7F", strike=True)
+    thin = Side(style="thin", color="DDDDDD")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     def set_col_width(widths: dict[str, float]) -> None:
@@ -156,12 +158,26 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
 
     ws["A24"] = "Retention basis"
     ws["C24"] = "MAX"
-    ws["C24"].alignment = center
+    ws["C24"].alignment = left
     ws.merge_cells("C24:D24")
+
+    ws["A25"] = "Side slope ratio (H:V)"
+    ws["C25"] = 3
+    ws["C25"].alignment = left
+    ws.merge_cells("C25:D25")
+
+    ws["A26"] = "Input highlight"
+    ws["C26"] = "ON"
+    ws["C26"].alignment = left
+    ws.merge_cells("C26:D26")
 
     dv_basis = DataValidation(type="list", formula1='"MAX,LOT ONLY,IMP ONLY"', allow_blank=False)
     ws.add_data_validation(dv_basis)
     dv_basis.add(ws["C24"])
+
+    dv_highlight = DataValidation(type="list", formula1='"ON,OFF"', allow_blank=False)
+    ws.add_data_validation(dv_highlight)
+    dv_highlight.add(ws["C26"])
 
     ws["A14"] = "Required (cf)"
     ws["A14"].font = bold_font
@@ -210,7 +226,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ("Bot L (ft)", "D"),
         ("Width (ft)", "E"),
         ("Length (ft)", "F"),
-        ("Depth (ft)", "G"),
+        ("Depth (in)", "G"),
         ("Volume (cf)", "H"),
         ("Select", "I"),
     ]
@@ -223,12 +239,12 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[cell].fill = fill_header
 
     swale_defaults = [
-        # Trapezoid/Frustum: bottom WxL in C/D, top WxL in E/F, depth in G (ft)
-        dict(name="Swale A", type="Trapezoid", bw=6, bl=35, tw=9, tl=38, depth_ft=0.75),
-        dict(name="Swale B", type="Trapezoid", bw=2, bl=16, tw=8, tl=22, depth_ft=1.00),
-        # V-shape: E=top width, F=length, G=depth (ft)
-        dict(name="Swale C", type="V-Shape", bw=None, bl=None, tw=8, tl=48, depth_ft=1.00),
-        dict(name="Swale D", type="V-Shape", bw=None, bl=None, tw=8, tl=24, depth_ft=1.00),
+        # Trapezoid/Frustum: top WxL in E/F, depth in G (in), bottom C/D auto-calculated at 3H:1V (using H1)
+        dict(name="Swale A", type="Trapezoid", tw=8, tl=48),
+        dict(name="Swale B", type="Trapezoid", tw=8, tl=24),
+        # V-shape: E=top width, F=length, G=max depth (in) auto-calculated at 3H:1V (using H1)
+        dict(name="Swale C", type="V-Shape", tw=8, tl=48),
+        dict(name="Swale D", type="V-Shape", tw=8, tl=24),
     ]
 
     for i, s in enumerate(swale_defaults):
@@ -237,41 +253,89 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[f"A{r}"].alignment = left
 
         ws[f"B{r}"] = s["type"]
-        ws[f"B{r}"].fill = fill_sub
         ws[f"B{r}"].alignment = center
 
         # inputs
         for col in ("C", "D", "E", "F", "G"):
             ws[f"{col}{r}"].alignment = right
 
-        if s["bw"] is not None:
-            ws[f"C{r}"] = s["bw"]
-        if s["bl"] is not None:
-            ws[f"D{r}"] = s["bl"]
         ws[f"E{r}"] = s["tw"]
         ws[f"F{r}"] = s["tl"]
-        ws[f"G{r}"] = s["depth_ft"]
+        if s["type"] == "Trapezoid":
+            ws[f"G{r}"] = f'=IF(OR(E{r}="",F{r}=""),"",12*MAX(0,MIN((E{r}-2)/(2*$C$25),(F{r}-2)/(2*$C$25))))'
+            ws[f"C{r}"] = f'=IF(OR(E{r}="",G{r}=""),"",MAX(0,E{r}-2*$C$25*(G{r}/12)))'
+            ws[f"D{r}"] = f'=IF(OR(F{r}="",G{r}=""),"",MAX(0,F{r}-2*$C$25*(G{r}/12)))'
+        else:
+            ws[f"G{r}"] = f'=IF(E{r}="","",12*(E{r}/(2*$C$25)))'
+        ws[f"C{r}"].number_format = "0.0"
+        ws[f"D{r}"].number_format = "0.0"
+        ws[f"G{r}"].number_format = "0.0"
 
         # Volume formula:
-        # - V-Shape: 0.5*TopWidth*Depth*Length
-        # - Trapezoid/Frustum: h/3*(A1+A2+sqrt(A1*A2)), A1=C*D, A2=E*F, h=G
+        # - V-Shape (with sloped short sides): prismoid along length,
+        #   h*TopWidth*(2*TopLength + BottomLength)/6, where BottomLength=max(0, TopLength-TopWidth)
+        # - Trapezoid/Frustum: h/3*(A1+A2+sqrt(A1*A2)), A1=C*D, A2=E*F, h=G/12
         ws[f"H{r}"] = (
             f'=IF(UPPER($B{r})="V-SHAPE",'
-            f'IF(OR(E{r}="",F{r}="",G{r}=""),"",0.5*E{r}*G{r}*F{r}),'
+            f'IF(OR(E{r}="",F{r}="",G{r}=""),"",(G{r}/12)*E{r}*(2*F{r}+MAX(0,F{r}-E{r}))/6),'
             f'IF(OR(C{r}="",D{r}="",E{r}="",F{r}="",G{r}=""),"",'
-            f'G{r}/3*((C{r}*D{r})+(E{r}*F{r})+SQRT((C{r}*D{r})*(E{r}*F{r}))))'
+            f'(G{r}/12)/3*((C{r}*D{r})+(E{r}*F{r})+SQRT((C{r}*D{r})*(E{r}*F{r}))))'
             f')'
         )
         ws[f"H{r}"].number_format = "#,##0.0"
         ws[f"H{r}"].alignment = right
 
-        ws[f"I{r}"] = "YES" if i < 2 else "NO"
+        ws[f"I{r}"] = "NO"
         ws[f"I{r}"].alignment = center
 
     # YES/NO dropdown
     dv_use = DataValidation(type="list", formula1='"YES,NO"', allow_blank=False)
     ws.add_data_validation(dv_use)
     dv_use.add("I19:I22")
+
+    # Guard trapezoid inputs so computed bottom dimensions cannot be below 2.0 ft.
+    dv_trap_min_bottom = DataValidation(
+        type="custom",
+        formula1='OR(UPPER(INDIRECT("B"&ROW()))<>"TRAPEZOID",INDIRECT("E"&ROW())="",INDIRECT("F"&ROW())="",AND(INDIRECT("E"&ROW())>=2,INDIRECT("F"&ROW())>=2))',
+        allow_blank=True,
+        errorStyle="stop",
+    )
+    dv_trap_min_bottom.showInputMessage = True
+    dv_trap_min_bottom.showErrorMessage = True
+    dv_trap_min_bottom.promptTitle = "Trapezoid Minimum Bottom"
+    dv_trap_min_bottom.prompt = "For trapezoids, top width and top length must each be at least 2.0 ft so bottom sides stay >= 2.0 ft."
+    dv_trap_min_bottom.errorTitle = "Invalid Trapezoid Top Dimensions"
+    dv_trap_min_bottom.error = "Increase top width/length to at least 2.0 ft to keep trapezoid bottom width/length at or above 2.0 ft."
+    ws.add_data_validation(dv_trap_min_bottom)
+    dv_trap_min_bottom.add("E19:F20")
+
+    # Prevent manual edits to bottom dimensions (calculated cells).
+    dv_bottom_locked = DataValidation(type="custom", formula1="FALSE", allow_blank=False, errorStyle="stop")
+    dv_bottom_locked.showInputMessage = True
+    dv_bottom_locked.showErrorMessage = True
+    dv_bottom_locked.promptTitle = "Calculated Cell"
+    dv_bottom_locked.prompt = "Bottom Width/Length are calculated automatically and cannot be edited."
+    dv_bottom_locked.errorTitle = "Bottom Dimensions Locked"
+    dv_bottom_locked.error = "Bottom Width and Bottom Length are calculated from Top dimensions and slope. Edit Width/Length instead."
+    ws.add_data_validation(dv_bottom_locked)
+    dv_bottom_locked.add("C19:D22")
+
+    ws.conditional_formatting.add(
+        "B3:B7",
+        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+    )
+    ws.conditional_formatting.add(
+        "E19:E22",
+        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+    )
+    ws.conditional_formatting.add(
+        "F19:F22",
+        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+    )
+    ws.conditional_formatting.add(
+        "A19:H22",
+        FormulaRule(formula=['$I19="NO"'], font=deprecate_font, fill=fill_deprecated),
+    )
 
     apply_border("A18:I22")
 
