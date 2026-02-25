@@ -21,12 +21,12 @@ It is used by [Witty Finch Engineering](https://wittyfinch.com) in their residen
 		- `1.0 inch over impervious area`.
 	- Other options calculate directly from the chosen basis (`1/2" lot`, `1" lot`, `1.5" lot`, or `1" impervious`).
 - Swale volume (cf):
-	- `V-Shape` (accounts for sloped short sides): `h × Wt × (2Lt + Lb) / 6`, where
+	- `V-Swale` (accounts for sloped short sides): `h × Wt × (2Lt + Lb) / 6`, where
 		- `h = depth`,
 		- `Wt = top width`,
 		- `Lt = top length`,
 		- `Lb = max(0, Lt - Wt)`.
-	- `Trapezoid` (frustum): `h/3 × (A1 + A2 + sqrt(A1×A2))`, where
+	- `T-Swale` (frustum): `h/3 × (A1 + A2 + sqrt(A1×A2))`, where
 		- `h = depth`,
 		- `A1 = bottom width × bottom length`,
 		- `A2 = top width × top length`.
@@ -45,7 +45,7 @@ Under **Stormwater Retention**:
 
 The workbook includes validation checks to prevent invalid geometry entries.
 
-- `Trapezoid` top width and top length must each be at least `2.0 ft`.
+- `T-Swale` top width and top length must each be at least `2.0 ft`.
 - Bottom width/length cells are calculated and locked from manual edits.
 
 ## Requirements

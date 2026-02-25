@@ -27,6 +27,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
 
     ws = wb.active
     ws.title = "Swale Calculator"
+    ws.sheet_view.showGridLines = False
     ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.25, bottom=0.25, header=0.25, footer=0.25)
 
     # -----------------------------
@@ -262,12 +263,12 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[cell].fill = fill_header
 
     swale_defaults = [
-        # Trapezoid/Frustum: top WxL in E/F, depth in G (in), bottom C/D auto-calculated at 3H:1V (using H1)
-        dict(name="Swale A", type="Trapezoid", tw=8, tl=48),
-        dict(name="Swale B", type="Trapezoid", tw=8, tl=24),
-        # V-shape: E=top width, F=length, G=max depth (in) auto-calculated at 3H:1V (using H1)
-        dict(name="Swale C", type="V-Shape", tw=8, tl=48),
-        dict(name="Swale D", type="V-Shape", tw=8, tl=24),
+        # T-Swale/Frustum: top WxL in E/F, depth in G (in), bottom C/D auto-calculated at 3H:1V (using H1)
+        dict(name="Swale A", type="T-Swale", tw=8, tl=48),
+        dict(name="Swale B", type="T-Swale", tw=8, tl=24),
+        # V-Swale: E=top width, F=length, G=max depth (in) auto-calculated at 3H:1V (using H1)
+        dict(name="Swale C", type="V-Swale", tw=8, tl=48),
+        dict(name="Swale D", type="V-Swale", tw=8, tl=24),
     ]
 
     for i, s in enumerate(swale_defaults):
@@ -284,7 +285,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
 
         ws[f"E{r}"] = s["tw"]
         ws[f"F{r}"] = s["tl"]
-        if s["type"] == "Trapezoid":
+        if s["type"] == "T-Swale":
             ws[f"G{r}"] = f'=IF(OR(E{r}="",F{r}=""),"",12*MAX(0,MIN((E{r}-2)/(2*$B$17),(F{r}-2)/(2*$B$17))))'
             ws[f"C{r}"] = f'=IF(OR(E{r}="",G{r}=""),"",MAX(0,E{r}-2*$B$17*(G{r}/12)))'
             ws[f"D{r}"] = f'=IF(OR(F{r}="",G{r}=""),"",MAX(0,F{r}-2*$B$17*(G{r}/12)))'
@@ -295,11 +296,11 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[f"G{r}"].number_format = "0.0"
 
         # Volume formula:
-        # - V-Shape (with sloped short sides): prismoid along length,
+        # - V-Swale (with sloped short sides): prismoid along length,
         #   h*TopWidth*(2*TopLength + BottomLength)/6, where BottomLength=max(0, TopLength-TopWidth)
-        # - Trapezoid/Frustum: h/3*(A1+A2+sqrt(A1*A2)), A1=C*D, A2=E*F, h=G/12
+        # - T-Swale/Frustum: h/3*(A1+A2+sqrt(A1*A2)), A1=C*D, A2=E*F, h=G/12
         ws[f"H{r}"] = (
-            f'=IF(UPPER($B{r})="V-SHAPE",'
+            f'=IF(UPPER($B{r})="V-SWALE",'
             f'IF(OR(E{r}="",F{r}="",G{r}=""),"",(G{r}/12)*E{r}*(2*F{r}+MAX(0,F{r}-E{r}))/6),'
             f'IF(OR(C{r}="",D{r}="",E{r}="",F{r}="",G{r}=""),"",'
             f'(G{r}/12)/3*((C{r}*D{r})+(E{r}*F{r})+SQRT((C{r}*D{r})*(E{r}*F{r}))))'
@@ -316,19 +317,19 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     ws.add_data_validation(dv_use)
     dv_use.add("J20:J23")
 
-    # Guard trapezoid inputs so computed bottom dimensions cannot be below 2.0 ft.
+    # Guard T-Swale inputs so computed bottom dimensions cannot be below 2.0 ft.
     dv_trap_min_bottom = DataValidation(
         type="custom",
-        formula1='OR(UPPER(INDIRECT("B"&ROW()))<>"TRAPEZOID",INDIRECT("E"&ROW())="",INDIRECT("F"&ROW())="",AND(INDIRECT("E"&ROW())>=2,INDIRECT("F"&ROW())>=2))',
+        formula1='OR(UPPER(INDIRECT("B"&ROW()))<>"T-SWALE",INDIRECT("E"&ROW())="",INDIRECT("F"&ROW())="",AND(INDIRECT("E"&ROW())>=2,INDIRECT("F"&ROW())>=2))',
         allow_blank=True,
         errorStyle="stop",
     )
     dv_trap_min_bottom.showInputMessage = True
     dv_trap_min_bottom.showErrorMessage = True
-    dv_trap_min_bottom.promptTitle = "Trapezoid Minimum Bottom"
-    dv_trap_min_bottom.prompt = "For trapezoids, top width and top length must each be at least 2.0 ft so bottom sides stay >= 2.0 ft."
-    dv_trap_min_bottom.errorTitle = "Invalid Trapezoid Top Dimensions"
-    dv_trap_min_bottom.error = "Increase top width/length to at least 2.0 ft to keep trapezoid bottom width/length at or above 2.0 ft."
+    dv_trap_min_bottom.promptTitle = "T-Swale Minimum Bottom"
+    dv_trap_min_bottom.prompt = "For T-Swales, top width and top length must each be at least 2.0 ft so bottom sides stay >= 2.0 ft."
+    dv_trap_min_bottom.errorTitle = "Invalid T-Swale Top Dimensions"
+    dv_trap_min_bottom.error = "Increase top width/length to at least 2.0 ft to keep T-Swale bottom width/length at or above 2.0 ft."
     ws.add_data_validation(dv_trap_min_bottom)
     dv_trap_min_bottom.add("E20:F21")
 
