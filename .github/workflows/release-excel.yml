@@ -1,0 +1,56 @@
+name: Release Excel Workbook
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create (example: v1.0.0)"
+        required: true
+      name:
+        description: "Release title (defaults to tag if empty)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build workbook
+        run: |
+          mkdir -p build
+          python swale-calculator.py --out "build/swale_calculator_${RELEASE_TAG}.xlsx"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swale-calculator-xlsx
+          path: build/swale_calculator_${{ env.RELEASE_TAG }}.xlsx
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ github.event_name == 'workflow_dispatch' && (inputs.name || inputs.tag) || github.ref_name }}
+          files: build/swale_calculator_${{ env.RELEASE_TAG }}.xlsx
+          generate_release_notes: true
