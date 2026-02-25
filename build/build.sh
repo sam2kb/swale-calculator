@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${ROOT_DIR}/build"
 XLSX_FILE="${OUT_DIR}/swale_calculator.xlsx"
-VENV_DIR="${ROOT_DIR}/.venv"
+VENV_DIR="${ROOT_DIR}/.venv-linux"
 
 cd "${ROOT_DIR}"
 mkdir -p "${OUT_DIR}"
@@ -24,4 +24,4 @@ if [[ ! -f "${VENV_DIR}/.deps_installed" ]]; then
 fi
 
 # Generate workbook
-"${PY}" residential.py --out "${XLSX_FILE}"
+"${PY}" swale-calculator.py --out "${XLSX_FILE}"

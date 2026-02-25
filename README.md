@@ -32,7 +32,7 @@ It is used by [Witty Finch Engineering](https://wittyfinch.com) in their residen
 
 Under **Stormwater Retention**:
 
-- `Retention basis`: `MAX`, `LOT ONLY`, or `IMP ONLY`.
+- `Retention basis`: `Current max (1/2" lot | 1" impervious)`, `1/2" over lot`, `1" over lot`, `1.5" over lot`, or `1" over impervious`.
 - `Side slope ratio (H:V)`: global slope constant used by swale geometry formulas.
 - `Input highlight`: `ON/OFF` toggle for yellow background on editable input cells.
 
@@ -49,19 +49,27 @@ The workbook includes validation checks to prevent invalid geometry entries.
 
 ## Build
 
+### macOS / Linux
+
 ```bash
-chmod +x build.sh
-./build.sh
+chmod +x build/build.sh
+./build/build.sh
+```
+
+### Windows (Command Prompt)
+
+```bat
+build\build.bat
 ```
 
 The script will:
 
-- create `.venv` if needed,
+- create an OS-specific virtualenv if needed (`.venv-linux` or `.venv-windows`),
 - install dependencies from `requirements.txt`,
 - generate the workbook at `build/swale_calculator.xlsx`.
 
 ## Run script directly (optional)
 
 ```bash
-python3 residential.py --out build/swale_calculator.xlsx
+python3 swale-calculator.py --out build/swale_calculator.xlsx
 ```

@@ -45,7 +45,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     fill_input = PatternFill(fill_type="solid", start_color="FFFFFF00", end_color="FFFFFF00")
     fill_deprecated = PatternFill(fill_type="solid", start_color="FFF2F2F2", end_color="FFF2F2F2")
     deprecate_font = Font(color="FF7F7F7F", strike=True)
-    thin = Side(style="thin", color="DDDDDD")
+    thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     def set_col_width(widths: dict[str, float]) -> None:
@@ -57,20 +57,27 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
             for cell in row:
                 cell.border = border
 
+    def apply_left_border(cell_range: str) -> None:
+        left_border = Border(left=thin)
+        for row in ws[cell_range]:
+            for cell in row:
+                cell.border = left_border
+
     # -----------------------------
     # Layout
     # -----------------------------
     set_col_width(
         {
-            "A": 20,
-            "B": 11,
+            "A": 21,
+            "B": 10,
             "C": 10,
             "D": 10,
             "E": 10,
-            "F": 11,
-            "G": 11,
-            "H": 12,
-            "I": 11,
+            "F": 10,
+            "G": 10,
+            "H": 11,
+            "I": 10,
+            "J": 10,
         }
     )
 
@@ -150,75 +157,91 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     # -----------------------------
     # STORMWATER RETENTION
     # -----------------------------
-    ws["A13"] = "STORMWATER RETENTION"
-    ws["A13"].font = title_font
-    ws["A13"].alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-    ws.row_dimensions[13].height = 22
-    ws.merge_cells("A13:C13")
+    ws["A12"] = "STORMWATER RETENTION"
+    ws["A12"].font = title_font
+    ws["A12"].alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    ws.row_dimensions[12].height = 22
+    ws.merge_cells("A12:C12")
 
-    ws["A24"] = "Retention basis"
-    ws["C24"] = "MAX"
-    ws["C24"].alignment = left
-    ws.merge_cells("C24:D24")
+    ws["A16"] = "Retention basis"
+    ws["A16"].font = bold_font
+    ws["B16"] = 'Max (1/2" lot | 1" impervious)'
+    ws.merge_cells("B16:D16")
 
-    ws["A25"] = "Side slope ratio (H:V)"
-    ws["C25"] = 3
-    ws["C25"].alignment = left
-    ws.merge_cells("C25:D25")
+    apply_left_border("E13:E17")
 
-    ws["A26"] = "Input highlight"
-    ws["C26"] = "ON"
-    ws["C26"].alignment = left
-    ws.merge_cells("C26:D26")
+    ws["A17"] = "Side slope ratio (H:V)"
+    ws["A17"].font = bold_font
+    ws["B17"] = 3
+    ws["B17"].alignment = left
 
-    dv_basis = DataValidation(type="list", formula1='"MAX,LOT ONLY,IMP ONLY"', allow_blank=False)
+    ws["A25"] = "Input highlight"
+    ws["A25"].font = bold_font
+    ws["B25"] = "ON"
+
+    dv_basis = DataValidation(
+        type="list",
+        formula1='"Max (1/2"" lot | 1"" impervious),1/2"" over lot,1"" over lot,1.5"" over lot,1"" over impervious"',
+        allow_blank=False,
+    )
     ws.add_data_validation(dv_basis)
-    dv_basis.add(ws["C24"])
+    dv_basis.add(ws["B16"])
 
     dv_highlight = DataValidation(type="list", formula1='"ON,OFF"', allow_blank=False)
     ws.add_data_validation(dv_highlight)
-    dv_highlight.add(ws["C26"])
+    dv_highlight.add(ws["B25"])
 
-    ws["A14"] = "Required (cf)"
+    ws["A13"] = "Required (cf)"
+    ws["A13"].font = bold_font
+    ws["B13"] = (
+        '=IF($B$16="1/2"" over lot",(0.5/12)*$B$3,'
+        'IF($B$16="1"" over lot",(1/12)*$B$3,'
+        'IF($B$16="1.5"" over lot",(1.5/12)*$B$3,'
+        'IF($B$16="1"" over impervious",(1/12)*$B$9,'
+        'MAX((0.5/12)*$B$3,(1/12)*$B$9)))))'
+    )
+    ws["B13"].number_format = "#,##0.0"
+    ws["B13"].alignment = left
+
+    ws["A14"] = "Provided (cf)"
     ws["A14"].font = bold_font
-    ws["A14"].alignment = left
-    ws["B14"] = (
-        '=IF($C$24="LOT ONLY",(0.5/12)*$B$3,'
-        'IF($C$24="IMP ONLY",(1/12)*$B$9,'
-        'MAX((0.5/12)*$B$3,(1/12)*$B$9)))'
-    )
+    # Provided = sum volumes where Select=YES (H20:H23, J20:J23)
+    ws["B14"] = '=SUMPRODUCT(--($J$20:$J$23="YES"),$H$20:$H$23)'
     ws["B14"].number_format = "#,##0.0"
-    ws["B14"].alignment = right
+    ws["B14"].alignment = left
 
-    ws["A15"] = "Provided (cf)"
+    ws["A15"] = "FHA Type B"
     ws["A15"].font = bold_font
-    ws["A15"].alignment = left
-    # Provided = sum volumes where Select=YES (H19:H22, I19:I22)
-    ws["B15"] = '=SUMPRODUCT(--($I$19:$I$22="YES"),$H$19:$H$22)'
-    ws["B15"].number_format = "#,##0.0"
-    ws["B15"].alignment = right
+    ws["B15"] = "Drainage to front and rear"
+    ws.merge_cells("B15:D15")
 
-    ws["A16"] = CellRichText(
-        TextBlock(InlineFont(b=True), "FHA Type B:"),
-        TextBlock(InlineFont(b=False), " Drainage to front and rear"),
-    )
-    ws["A16"].alignment = left
-    ws.merge_cells("A16:C16")
+    ws["F13"] = "Retention Options (cf)"
+    ws["F13"].font = bold_font
+    ws["F13"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    ws.merge_cells("F13:H13")
 
-    apply_border("A14:B15")
+    ws["F14"] = '1/2" over lot'
+    ws["F15"] = '1" over lot'
+    ws["F16"] = '1.5" over lot'
+    ws["F17"] = '1" over impervious'
+    for addr in ("F14", "F15", "F16", "F17"):
+        ws[addr].alignment = left
+    ws.merge_cells("F14:G14")
+    ws.merge_cells("F15:G15")
+    ws.merge_cells("F16:G16")
+    ws.merge_cells("F17:G17")
 
-    ws["E14"] = (
-        '="Required retention uses the larger of two methods:"&CHAR(10)&'
-        '"       (a) 1/2"" over total lot area "&TEXT($B$3,"#,##0")&" sf"&CHAR(10)&'
-        '"       (b) 1"" over impervious area "&TEXT($B$9,"#,##0")&" sf"'
-    )
-    ws.merge_cells("E14:I16")
-    ws["E14"].alignment = Alignment(horizontal="left", vertical="bottom", wrap_text=True)
+    ws["H14"] = '=TEXT((0.5/12)*$B$3,"#,##0.0")'
+    ws["H15"] = '=TEXT((1/12)*$B$3,"#,##0.0")'
+    ws["H16"] = '=TEXT((1.5/12)*$B$3,"#,##0.0")'
+    ws["H17"] = '=TEXT((1/12)*$B$9,"#,##0.0")'
+    for addr in ("H14", "H15", "H16", "H17"):
+        ws[addr].alignment = right
 
     # -----------------------------
     # SWALES TABLE
     # -----------------------------
-    header_row = 18
+    header_row = 19
     headers = [
         ("Swale", "A"),
         ("Type", "B"),
@@ -228,7 +251,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ("Length (ft)", "F"),
         ("Depth (in)", "G"),
         ("Volume (cf)", "H"),
-        ("Select", "I"),
+        ("Select", "J"),
     ]
 
     for text, col in headers:
@@ -248,7 +271,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     ]
 
     for i, s in enumerate(swale_defaults):
-        r = header_row + 1 + i  # 19..22
+        r = header_row + 1 + i  # 20..23
         ws[f"A{r}"] = s["name"]
         ws[f"A{r}"].alignment = left
 
@@ -262,11 +285,11 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[f"E{r}"] = s["tw"]
         ws[f"F{r}"] = s["tl"]
         if s["type"] == "Trapezoid":
-            ws[f"G{r}"] = f'=IF(OR(E{r}="",F{r}=""),"",12*MAX(0,MIN((E{r}-2)/(2*$C$25),(F{r}-2)/(2*$C$25))))'
-            ws[f"C{r}"] = f'=IF(OR(E{r}="",G{r}=""),"",MAX(0,E{r}-2*$C$25*(G{r}/12)))'
-            ws[f"D{r}"] = f'=IF(OR(F{r}="",G{r}=""),"",MAX(0,F{r}-2*$C$25*(G{r}/12)))'
+            ws[f"G{r}"] = f'=IF(OR(E{r}="",F{r}=""),"",12*MAX(0,MIN((E{r}-2)/(2*$B$17),(F{r}-2)/(2*$B$17))))'
+            ws[f"C{r}"] = f'=IF(OR(E{r}="",G{r}=""),"",MAX(0,E{r}-2*$B$17*(G{r}/12)))'
+            ws[f"D{r}"] = f'=IF(OR(F{r}="",G{r}=""),"",MAX(0,F{r}-2*$B$17*(G{r}/12)))'
         else:
-            ws[f"G{r}"] = f'=IF(E{r}="","",12*(E{r}/(2*$C$25)))'
+            ws[f"G{r}"] = f'=IF(E{r}="","",12*(E{r}/(2*$B$17)))'
         ws[f"C{r}"].number_format = "0.0"
         ws[f"D{r}"].number_format = "0.0"
         ws[f"G{r}"].number_format = "0.0"
@@ -285,13 +308,13 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
         ws[f"H{r}"].number_format = "#,##0.0"
         ws[f"H{r}"].alignment = right
 
-        ws[f"I{r}"] = "NO"
-        ws[f"I{r}"].alignment = center
+        ws[f"J{r}"] = "NO"
+        ws[f"J{r}"].alignment = center
 
     # YES/NO dropdown
     dv_use = DataValidation(type="list", formula1='"YES,NO"', allow_blank=False)
     ws.add_data_validation(dv_use)
-    dv_use.add("I19:I22")
+    dv_use.add("J20:J23")
 
     # Guard trapezoid inputs so computed bottom dimensions cannot be below 2.0 ft.
     dv_trap_min_bottom = DataValidation(
@@ -307,7 +330,7 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     dv_trap_min_bottom.errorTitle = "Invalid Trapezoid Top Dimensions"
     dv_trap_min_bottom.error = "Increase top width/length to at least 2.0 ft to keep trapezoid bottom width/length at or above 2.0 ft."
     ws.add_data_validation(dv_trap_min_bottom)
-    dv_trap_min_bottom.add("E19:F20")
+    dv_trap_min_bottom.add("E20:F21")
 
     # Prevent manual edits to bottom dimensions (calculated cells).
     dv_bottom_locked = DataValidation(type="custom", formula1="FALSE", allow_blank=False, errorStyle="stop")
@@ -318,26 +341,27 @@ def make(out: Union[str, Path] = "swale_calculator.xlsx") -> Path:
     dv_bottom_locked.errorTitle = "Bottom Dimensions Locked"
     dv_bottom_locked.error = "Bottom Width and Bottom Length are calculated from Top dimensions and slope. Edit Width/Length instead."
     ws.add_data_validation(dv_bottom_locked)
-    dv_bottom_locked.add("C19:D22")
+    dv_bottom_locked.add("C20:D23")
 
     ws.conditional_formatting.add(
         "B3:B7",
-        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+        FormulaRule(formula=['$B$25="ON"'], fill=fill_input, stopIfTrue=True),
     )
     ws.conditional_formatting.add(
-        "E19:E22",
-        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+        "E20:E23",
+        FormulaRule(formula=['$B$25="ON"'], fill=fill_input, stopIfTrue=True),
     )
     ws.conditional_formatting.add(
-        "F19:F22",
-        FormulaRule(formula=['$C$26="ON"'], fill=fill_input, stopIfTrue=True),
+        "G20:G23",
+        FormulaRule(formula=['$B$25="ON"'], fill=fill_input, stopIfTrue=True),
     )
     ws.conditional_formatting.add(
-        "A19:H22",
-        FormulaRule(formula=['$I19="NO"'], font=deprecate_font, fill=fill_deprecated),
+        "A20:H23",
+        FormulaRule(formula=['$J20="NO"'], font=deprecate_font, fill=fill_deprecated),
     )
 
-    apply_border("A18:I22")
+    apply_border("A19:H23")
+    apply_border("J19:J23")
 
     out_path = Path(out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
