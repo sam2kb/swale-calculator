@@ -2,6 +2,8 @@
 
 Generates the stormwater retention swale calculator Excel workbook (`.xlsx`).
 
+![Swale Calculator Screenshot](swale-calculator.png)
+
 ## Why this exists
 
 This workbook provides a quick, consistent check that proposed swales supply the required stormwater retention volume for a residential lot. It standardizes assumptions, formulas, and layout so every project is calculated the same way across the team.
